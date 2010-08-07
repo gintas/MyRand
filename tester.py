@@ -1,4 +1,8 @@
+#!/usr/bin/python
+"""An RNG testing suite."""
+
 import zlib
+from math import sqrt
 
 # Constants.
 IMAGE_WIDTH = 1024
@@ -31,6 +35,10 @@ def test(cls, seed=123123123, iterations=200000):
     rng = cls(seed=seed)
     s = ''
 
+    # Generate numbers, collect bucket information.
+    # Two bucket bins are created, one for the most significant byte of the
+    # int and one for the least significant byte. Later we check that the
+    # buckets are evenly distributed.
     lsb_bins = {}
     msb_bins = {}
     for i in range(256):
@@ -44,9 +52,9 @@ def test(cls, seed=123123123, iterations=200000):
             s += chr(x % 256)
             x = x >> 8
 
-    print '== LSB =='
+    print '== Least-significant-byte buckets =='
     examine_buckets(lsb_bins, iterations)
-    print '== MSB =='
+    print '== Most-significant-byte buckets =='
     examine_buckets(msb_bins, iterations)
     print '==='
 
@@ -57,15 +65,25 @@ def test(cls, seed=123123123, iterations=200000):
     plot_filename = test_name.lower() + '.png'
     print 'Drawing plot (%s)...' % plot_filename
     draw_plot(s, filename=plot_filename)
+
     print '--------------------------------------------------'
+
+
+def examine_buckets(bins, iterations):
+    print 'bucket range:', min(bins.keys()), max(bins.keys())
+    print 'bucket count:', len(bins.keys())
+    print 'bucket spread:', min(bins.values()), max(bins.values()), '(avg %d)' % (iterations / 256)
+    x = [p[0] for p in bins.items()]
+    y = [p[1] for p in bins.items()]
+    a, b = linreg(x, y)
+    print 'linear regression: a=%.03f, b=%.03f' % (a, b)
 
 
 def linreg(X, Y):
     """Calculate linear regression between X and Y."""
-    # Taken from http://www.phys.uu.nl/~haque/computing/WPark_recipes_in_python.html
-    from math import sqrt
-    if len(X) != len(Y):  raise ValueError, 'unequal length'
-
+    # Borrowed from http://www.phys.uu.nl/~haque/computing/WPark_recipes_in_python.html
+    if len(X) != len(Y):
+        raise ValueError, 'unequal length'
     N = len(X)
     Sx = Sy = Sxx = Syy = Sxy = 0.0
     for x, y in map(None, X, Y):
@@ -88,19 +106,11 @@ def linreg(X, Y):
     return a, b
 
 
-def examine_buckets(bins, iterations):
-    print 'bucket range:', min(bins.keys()), max(bins.keys())
-    print 'bucket count:', len(bins.keys())
-    print 'bucket spread:', min(bins.values()), max(bins.values()), '(avg %d)' % (iterations / 256)
-    x = [p[0] for p in bins.items()]
-    y = [p[1] for p in bins.items()]
-    a, b = linreg(x, y)
-    print 'linear regression: a=%.03f, b=%.03f' % (a, b)
-
-
-def find_period(s, block=256):
-    part = s[:block]
-    pos = s[block:].find(part)
+def find_period(s, block=1024):
+    """Try to find a period in the given string."""
+    # Skip the initial `block` bytes.
+    part = s[block:block*2]
+    pos = s[block*2:].find(part)
     if pos != -1:
         return pos + block
     else:
