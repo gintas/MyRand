@@ -2,21 +2,21 @@
 """An RNG testing suite."""
 
 import zlib
-from math import sqrt
+from math import sqrt, factorial
 
 # Constants.
 IMAGE_WIDTH = 1024
 IMAGE_HEIGHT = 768
 
+PERMUTATION_SIZE = 5
+
 
 def main():
     """Main suite."""
     import myrand
+    test(myrand.NewRandom)
     #test(myrand.LCG)
     #test(myrand.BBS)
-    test(myrand.NewRandom)
-    #test(rand.NewRandom, iterations=1000000)
-    #test(rand.NewRandom, iterations=10000000)
 
 
 def test(cls, seed=123123123, iterations=200000):
@@ -56,6 +56,8 @@ def test(cls, seed=123123123, iterations=200000):
     examine_buckets(lsb_bins, iterations)
     print '== Most-significant-byte buckets =='
     examine_buckets(msb_bins, iterations)
+    print '== Permutations =='
+    check_permutation_distribution(s)
     print '==='
 
     print 'Period length:', find_period(s)
@@ -70,9 +72,12 @@ def test(cls, seed=123123123, iterations=200000):
 
 
 def examine_buckets(bins, iterations):
-    print 'bucket range:', min(bins.keys()), max(bins.keys())
-    print 'bucket count:', len(bins.keys())
-    print 'bucket spread:', min(bins.values()), max(bins.values()), '(avg %d)' % (iterations / 256)
+    if (min(bins.keys()), max(bins.keys())) != (0, 256):
+        print 'WARNING: bucket range:', len(bins.keys())
+    if len(bins.keys()) != 256:
+        print 'WARNING: bucket count:', len(bins.keys())
+    print 'bucket spread:', min(bins.values()), max(bins.values()), '(should be around %d)' % (iterations / 256)
+    print 'bucket stdev:', stdev(bins.values())
     x = [p[0] for p in bins.items()]
     y = [p[1] for p in bins.items()]
     a, b = linreg(x, y)
@@ -106,8 +111,21 @@ def linreg(X, Y):
     return a, b
 
 
+def stdev(v):
+    """Return standard deviation of a list."""
+    mean = sum(v) / float(len(v))
+    std = 0
+    for a in v:
+        std = std + (a - mean)**2
+    std = sqrt(std / float(len(v)-1))
+    return std
+
+
 def find_period(s, block=1024):
-    """Try to find a period in the given string."""
+    """Try to find a period in the given string.
+
+    Returns a position or n/a.
+    """
     # Skip the initial `block` bytes.
     part = s[block:block*2]
     pos = s[block*2:].find(part)
@@ -152,5 +170,51 @@ def draw_plot(s, filename='result.png'):
     img.save(filename)
 
 
+def order(seq):
+    """Return order of numbers in a sequence.
+
+        >>> order([1, 3, 5, 7])
+        '1234'
+        >>> order([1, 5, 5, 7])
+        '1234'
+        >>> order([7, 5, 3, 1])
+        '4321'
+        >>> order([9, 3, 5, 2])
+        '4231'
+
+    """
+    result = [''] * len(seq)
+    for i in range(len(seq)):
+        for j in range(len(seq)):
+            if seq[j] == min(seq):
+                result[j] = str(i+1)
+                seq[j] = 2 ** 40 # infinity
+                break
+    return ''.join(result)
+
+
+def check_permutation_distribution(s, block=2**15):
+    """Check the distribution of permutations of consecutive numbers.
+
+    `block` is the size of the subset of the character string to run the
+    check on.
+    """
+    s = s[:block]
+    bins = {}
+    for i in range(len(s)-PERMUTATION_SIZE):
+        seq = [ord(c) for c in s[i:i+PERMUTATION_SIZE]]
+        key = order(seq)
+        bins.setdefault(key, 0)
+        bins[key] += 1
+    if len(bins.keys()) != factorial(PERMUTATION_SIZE):
+        print 'WARNING: permutation bucket count: %s (should be %s)' % (
+                len(bins.keys()), factorial(PERMUTATION_SIZE))
+    print 'permutation bucket spread:', min(bins.values()), max(bins.values())
+    print 'permutation bucket stdev:', stdev(bins.values())
+
+
+
 if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
     main()
