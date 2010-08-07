@@ -1,4 +1,4 @@
-import os
+import zlib
 
 # Constants.
 IMAGE_WIDTH = 1024
@@ -8,26 +8,27 @@ IMAGE_HEIGHT = 768
 def main():
     """Main suite."""
     import myrand
-    test(myrand.BBS)
-    test(myrand.LCG)
+    #test(myrand.LCG)
+    #test(myrand.BBS)
     test(myrand.NewRandom)
     #test(rand.NewRandom, iterations=1000000)
     #test(rand.NewRandom, iterations=10000000)
 
 
-def test(cls, seed=123, iterations=100000):
+def test(cls, seed=123123123, iterations=200000):
     """Run a suite of tests on the given random number generator class.
 
-    `iterations` indicates how many runs to execute.
+    `iterations` indicates how many random numbers to generate.
 
-    Prints results to standard output. Creates an image file named after the
+    Prints results to standard output. Creates a PNG image file named after the
     class.
     """
     test_name = cls.__name__
-    print 'Testing:', test_name
-    print 'Iterations:', iterations
+    print 'TEST: %s (%d iterations)' % (test_name, iterations)
+    print cls.__doc__
+    print '---'
 
-    r = cls(seed=seed)
+    rng = cls(seed=seed)
     s = ''
 
     lsb_bins = {}
@@ -35,7 +36,7 @@ def test(cls, seed=123, iterations=100000):
     for i in range(256):
         lsb_bins[i] = msb_bins[i] = 0
     for i in xrange(iterations):
-        x = r.randint()
+        x = rng.randint()
         lsb_bins[x % 256] += 1
         msb_bins[(x >> 24) % 256] += 1
 
@@ -49,23 +50,18 @@ def test(cls, seed=123, iterations=100000):
     examine_buckets(msb_bins, iterations)
     print '==='
 
-    print 'Period:', find_period(s)
+    print 'Period length:', find_period(s)
 
-    import gzip
-    fn = '/tmp/rand.gz'
-    f = gzip.open(fn, 'wb') # TODO: tempfile
-    f.write(s)
-    f.close()
+    print 'Gzip factor:', gzip_factor(s)
 
-    gzipped_len = os.stat(fn).st_size
-    print 'Gzip factor:', float(gzipped_len) / (iterations * 4)
-
-    print 'Drawing plot...'
-    draw_plot(s, filename=test_name.lower() + '.png')
+    plot_filename = test_name.lower() + '.png'
+    print 'Drawing plot (%s)...' % plot_filename
+    draw_plot(s, filename=plot_filename)
     print '--------------------------------------------------'
 
 
 def linreg(X, Y):
+    """Calculate linear regression between X and Y."""
     # Taken from http://www.phys.uu.nl/~haque/computing/WPark_recipes_in_python.html
     from math import sqrt
     if len(X) != len(Y):  raise ValueError, 'unequal length'
@@ -89,13 +85,6 @@ def linreg(X, Y):
     ss = residual / (N-2)
     Var_a, Var_b = ss * N / det, ss * Sxx / det
 
-    #print "y=ax+b"
-    #print "N= %d" % N
-    #print "a= %g \\pm t_{%d;\\alpha/2} %g" % (a, N-2, sqrt(Var_a))
-    #print "b= %g \\pm t_{%d;\\alpha/2} %g" % (b, N-2, sqrt(Var_b))
-    #print "R^2= %g" % RR
-    #print "s^2= %g" % ss
-
     return a, b
 
 
@@ -118,7 +107,17 @@ def find_period(s, block=256):
         return 'n/a'
 
 
+def gzip_factor(s):
+    """Check how well a string compresses.
+
+    Returns a float. If the factor is significantly below 1, the string
+    probably has significant patterns.
+    """
+    return float(len(zlib.compress(s))) / len(s)
+
+
 def to_bits(s):
+    """Convert an 8-bit string to a list of bits."""
     bits = []
     for c in s:
         x = ord(c)
@@ -129,10 +128,15 @@ def to_bits(s):
 
 
 def draw_plot(s, filename='result.png'):
+    """Draw a B&W plot of the bits from a given 8-bit string."""
     n_pixels = IMAGE_HEIGHT * IMAGE_WIDTH
     plottable = s[:n_pixels // 8]
 
-    import Image
+    try:
+        import Image
+    except ImportError:
+        print 'PIL not available! Unable to draw plot.'
+        return
     img = Image.new('1', (IMAGE_WIDTH, IMAGE_HEIGHT))
     img.putdata(to_bits(plottable))
     img.save(filename)

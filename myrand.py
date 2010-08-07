@@ -16,6 +16,7 @@ class Random(object):
             yield self.randint()
 
     def randint(self):
+        """Generate another 32-bit random number."""
         raise NotImplementedError("override this")
 
     def randfloat(self):
@@ -30,7 +31,7 @@ class Random(object):
 
 
 class NewRandom(Random):
-    """A random number generator."""
+    """A custom random number generator."""
 
     # 10 random large primes
     K = [3939623148640414471,
@@ -60,7 +61,9 @@ class NewRandom(Random):
 
 
 class LCG(Random):
-    # A bad reference implementation (artifacts clearly visible in plot).
+    """A bad RNG reference implementation."""
+    # Used for testing the test suite.
+    # If you examine the test plot, you will clearly see artifacts.
 
     a = 22695477
     c = 1
@@ -76,7 +79,12 @@ class LCG(Random):
 
 
 class BBS(Random):
-    # A good reference implementation.
+    """A good RNG reference implementation.
+
+    This is the B.B.S. RNG; for more information see
+    http://en.wikipedia.org/wiki/Blum_Blum_Shub
+    """
+    # Used for testing the test suite.
 
     M = 100385543 * 100385123
 
