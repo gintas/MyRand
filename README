@@ -1,0 +1,8 @@
+An experimental random number generator
+=======================================
+
+This package contains a random number generator in Python and a suite of
+randomness tests.  You are free to use it in any way you like.
+
+gintautas@miliauskas.lt
+2010-08-07
