@@ -1,5 +1,70 @@
 import os
 
+# Constants.
+IMAGE_WIDTH = 1024
+IMAGE_HEIGHT = 768
+
+
+def main():
+    """Main suite."""
+    import myrand
+    test(myrand.BBS)
+    test(myrand.LCG)
+    test(myrand.NewRandom)
+    #test(rand.NewRandom, iterations=1000000)
+    #test(rand.NewRandom, iterations=10000000)
+
+
+def test(cls, seed=123, iterations=100000):
+    """Run a suite of tests on the given random number generator class.
+
+    `iterations` indicates how many runs to execute.
+
+    Prints results to standard output. Creates an image file named after the
+    class.
+    """
+    test_name = cls.__name__
+    print 'Testing:', test_name
+    print 'Iterations:', iterations
+
+    r = cls(seed=seed)
+    s = ''
+
+    lsb_bins = {}
+    msb_bins = {}
+    for i in range(256):
+        lsb_bins[i] = msb_bins[i] = 0
+    for i in xrange(iterations):
+        x = r.randint()
+        lsb_bins[x % 256] += 1
+        msb_bins[(x >> 24) % 256] += 1
+
+        for j in range(4):
+            s += chr(x % 256)
+            x = x >> 8
+
+    print '== LSB =='
+    examine_buckets(lsb_bins, iterations)
+    print '== MSB =='
+    examine_buckets(msb_bins, iterations)
+    print '==='
+
+    print 'Period:', find_period(s)
+
+    import gzip
+    fn = '/tmp/rand.gz'
+    f = gzip.open(fn, 'wb') # TODO: tempfile
+    f.write(s)
+    f.close()
+
+    gzipped_len = os.stat(fn).st_size
+    print 'Gzip factor:', float(gzipped_len) / (iterations * 4)
+
+    print 'Drawing plot...'
+    draw_plot(s, filename=test_name.lower() + '.png')
+    print '--------------------------------------------------'
+
+
 def linreg(X, Y):
     # Taken from http://www.phys.uu.nl/~haque/computing/WPark_recipes_in_python.html
     from math import sqrt
@@ -64,8 +129,6 @@ def to_bits(s):
 
 
 def draw_plot(s, filename='result.png'):
-    IMAGE_WIDTH = 1024
-    IMAGE_HEIGHT = 768
     n_pixels = IMAGE_HEIGHT * IMAGE_WIDTH
     plottable = s[:n_pixels // 8]
 
@@ -73,57 +136,6 @@ def draw_plot(s, filename='result.png'):
     img = Image.new('1', (IMAGE_WIDTH, IMAGE_HEIGHT))
     img.putdata(to_bits(plottable))
     img.save(filename)
-
-
-def test(cls, seed=123, iterations=100000):
-    test_name = cls.__name__
-    print 'Testing:', test_name
-    print 'Iterations:', iterations
-
-    r = cls(seed=seed)
-    s = ''
-
-    lsb_bins = {}
-    msb_bins = {}
-    for i in range(256):
-        lsb_bins[i] = msb_bins[i] = 0
-    for i in xrange(iterations):
-        x = r.randint()
-        lsb_bins[x % 256] += 1
-        msb_bins[(x >> 24) % 256] += 1
-
-        for j in range(4):
-            s += chr(x % 256)
-            x = x >> 8
-
-    print '== LSB =='
-    examine_buckets(lsb_bins, iterations)
-    print '== MSB =='
-    examine_buckets(msb_bins, iterations)
-    print '==='
-
-    print 'Period:', find_period(s)
-
-    import gzip
-    fn = '/tmp/rand.gz'
-    f = gzip.open(fn, 'wb') # TODO: tempfile
-    f.write(s)
-    f.close()
-
-    gzipped_len = os.stat(fn).st_size
-    print 'Gzip factor:', float(gzipped_len) / (iterations * 4)
-    print 'Drawing plot...'
-    draw_plot(s, filename=test_name.lower() + '.png')
-    print '--------------------------------------------------'
-
-
-def main():
-    import rand
-    test(rand.BBS)
-    test(rand.LCG)
-    test(rand.DigitMul)
-    #test(rand.DigitMul, iterations=1000000)
-    #test(rand.DigitMul, iterations=10000000)
 
 
 if __name__ == '__main__':

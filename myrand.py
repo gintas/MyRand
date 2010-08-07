@@ -1,18 +1,25 @@
-
+"""A collection of implementations."""
 
 class Random(object):
-    """A random number generator."""
+    """A base class for random number generators.
+
+    Children should override `randint()`.
+    """
 
     def __init__(self, seed=None):
         if seed is None:
             seed = int(time.time() * 1000000)
         self.seed = seed
 
+    def __iter__(self):
+        while True:
+            yield self.randint()
+
     def randint(self):
         raise NotImplementedError("override this")
 
     def randfloat(self):
-        return 1.0 / self.randint()
+        return self.randint() / float(2**32)
 
     def randbitstream(self):
         while True:
@@ -21,12 +28,9 @@ class Random(object):
                 yield x % 2
                 x = x >> 1
 
-    def __iter__(self):
-        while True:
-            yield self.randint()
 
-
-class DigitMul(Random):
+class NewRandom(Random):
+    """A random number generator."""
 
     # 10 random large primes
     K = [3939623148640414471,
@@ -41,7 +45,7 @@ class DigitMul(Random):
          3143737298900961481]
 
     def __init__(self, seed=None):
-        super(DigitMul, self).__init__(seed=seed)
+        super(NewRandom, self).__init__(seed=seed)
         self.prev = self.seed
         #self.c = 13478653040317
         self.ki = self.seed % 10
@@ -56,7 +60,7 @@ class DigitMul(Random):
 
 
 class LCG(Random):
-    """A sample LCG."""
+    # A bad reference implementation (artifacts clearly visible in plot).
 
     a = 22695477
     c = 1
@@ -72,8 +76,8 @@ class LCG(Random):
 
 
 class BBS(Random):
+    # A good reference implementation.
 
-    ##M = 11 * 19
     M = 100385543 * 100385123
 
     def __init__(self, seed=None):
@@ -84,5 +88,3 @@ class BBS(Random):
         x = (self.prev * self.prev) % self.M
         self.prev = x
         return x
-
-
